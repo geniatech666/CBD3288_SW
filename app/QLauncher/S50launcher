@@ -1,0 +1,92 @@
+#!/bin/sh
+#
+# Start linux launcher...
+#
+
+case "$1" in
+  start)
+		printf "Starting launcher: "
+		export LC_ALL='zh_CN.utf8'
+		export QT_QPA_PLATFORM=wayland
+		export WESTON_DRM_MIRROR=1
+		export WESTON_DRM_KEEP_RATIO=1
+		export QT_GSTREAMER_WINDOW_VIDEOSINK=kmssink
+		mkdir -p /tmp/.xdg &&  chmod 0700 /tmp/.xdg
+		export XDG_RUNTIME_DIR=/tmp/.xdg
+		weston --tty=2 --idle-time=0&
+		{
+			# Wait for weston ready
+			while [ ! -e ${XDG_RUNTIME_DIR}/wayland-0 ]; do
+				sleep .1
+			done
+			/usr/bin/QLauncher &
+		}&
+
+		#add for hdmiin tc358749		
+		media-ctl -d /dev/media0 --set-v4l2 '"rkisp1-isp-subdev":0[fmt:UYVY8_2X8/1920x1080]'
+		media-ctl -d /dev/media0 --set-v4l2 '"rkisp1-isp-subdev":0[crop:(0,0)/1920x1080]'
+		media-ctl -d /dev/media0 --set-v4l2 '"rkisp1-isp-subdev":2[fmt:UYVY8_2X8/1920x1080]'
+		media-ctl -d /dev/media0 --set-v4l2 '"rkisp1-isp-subdev":2[crop:(0,0)/1920x1080]'
+		v4l2-ctl -d /dev/video1 --set-selection=target=crop,top=0,left=0,width=1920,height=1080
+		amixer cset name="RT5651 ASRC Switch" 1
+		amixer cset name="IF2 ASRC Switch" 1
+		amixer cset name="DAC L2 Mux" 1
+		amixer cset name="DAC R2 Mux" 1
+		amixer cset name="Stereo DAC MIXL DAC L2 Switch" 1
+		amixer cset name="Stereo DAC MIXR DAC R2 Switch" 1
+		amixer cset name="HPOVOL L Switch" 1
+		amixer cset name="HPOVOL R Switch" 1
+		amixer cset name="HPO MIX HPVOL Switch" 1
+		amixer cset name="HPO MIX HPVOL Switch" 1
+		amixer cset name="HPO L Playback Switch" 1
+		amixer cset name="HPO R Playback Switch" 1
+		amixer cset name="HP Playback Volume" 31 31
+		amixer cset name="DAC1 Playback Volume" 175 175
+		amixer cset name="RT5651 ASRC Switch" 1
+		amixer cset name="IF2 ASRC Switch" 1
+		amixer cset name="DAC L2 Mux" "IF2"
+		amixer cset name="DAC R2 Mux" "IF2"
+		amixer cset name="DD MIXL DAC L2 Switch" 1
+		amixer cset name="DD MIXR DAC R2 Switch" 1
+		amixer cset name="Stereo1 ADC L2 Mux" "DD MIX"
+		amixer cset name="Stereo1 ADC R2 Mux" "DD MIX"
+		amixer cset name="Stereo1 ADC MIXL ADC2 Switch" 1
+		amixer cset name="Stereo1 ADC MIXR ADC2 Switch" 1
+		amixer cset name="ADC Capture Switch" 1 1
+		amixer cset name="ADC Capture Volume" 47 47
+		amixer cset name="DAC MIXL INF1 Switch" 1
+		amixer cset name="DAC MIXR INF1 Switch" 1
+		amixer cset name="Stereo DAC MIXL DAC L1 Switch" 1
+		amixer cset name="Stereo DAC MIXR DAC R1 Switch" 1
+		amixer cset name="OUT MIXL DAC L1 Switch" 1
+		amixer cset name="OUT MIXR DAC R1 Switch" 1
+		amixer cset name="LOUT MIX OUTVOL L Switch" 1
+		amixer cset name="LOUT MIX OUTVOL R Switch" 1
+		amixer cset name="LOUT L Playback Switch" 1
+		amixer cset name="LOUT R Playback Switch" 1
+		amixer cset name="OUTVOL L Switch" 1
+		amixer cset name="OUTVOL R Switch" 1
+		
+		sleep 1
+		# restart dpchcd /board/rockchip/common/qtapp/etc/init.d
+       		 /etc/init.d/S41dhcpcd restart
+		sleep 3
+		
+		#####beijingkaoya kadun####
+		echo performance | tee $(find /sys/devices -name *governor)
+
+		echo 0 > /sys/class/rfkill/rfkill0/state
+		echo 1 > /sys/class/rfkill/rfkill0/state
+		brcm_patchram_plus1 -d --enable_hci --no2bytes --tosleep 200000 --baudrate 1500000 --patchram /system/etc/firmware/bcm4339a0.hcd /dev/ttyS0 &
+	;;
+  stop)
+		killall QLauncher
+		killall weston
+		printf "stop finished"
+        ;;
+  *)
+        echo "Usage: $0 {start|stop}"
+        exit 1
+        ;;
+esac
+exit 0
